@@ -1,7 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Thinkific Reader Agent POC",
-  "version": "1.0",
+  "name": "Thinkific Course Scraper",
+  "version": "2.0",
+  "description": "Extract course content from Thinkific for migration and backup",
   "action": {
     "default_popup": "popup.html"
   },
@@ -9,5 +10,9 @@
     "activeTab",
     "scripting",
     "downloads"
+  ],
+  "host_permissions": [
+    "https://*.thinkific.com/*",
+    "https://*.amazonaws.com/*"
   ]
 }

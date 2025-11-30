@@ -3,49 +3,47 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Reader Agent POC</title>
-    <style>
-        body {
-            width: 300px;
-            font-family: sans-serif;
-            margin: 0;
-            padding: 20px;
-            box-sizing: border-box;
-        }
-
-        h1 {
-            margin: 0 0 20px 0;
-            font-size: 18px;
-            color: #333;
-        }
-
-        button {
-            width: 100%;
-            padding: 10px;
-            font-size: 14px;
-            background-color: #007cba;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            margin-bottom: 15px;
-        }
-
-        button:hover {
-            background-color: #005a87;
-        }
-
-        #status {
-            font-size: 12px;
-            color: #666;
-            min-height: 20px;
-        }
-    </style>
+    <title>Thinkific Course Scraper</title>
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <h1>Reader Agent POC</h1>
-    <button id="startScrapeBtn">Start Reading Course</button>
-    <div id="status"></div>
+    <div class="container">
+        <h1>Thinkific Course Scraper</h1>
+
+        <!-- Instructions -->
+        <div class="instructions">
+            Navigate to your Thinkific course curriculum page, then click Start to begin scraping.
+        </div>
+
+        <!-- Control Buttons -->
+        <div class="controls">
+            <button id="startBtn" class="btn-primary">Start Scraping</button>
+            <button id="cancelBtn" class="btn-danger" disabled>Cancel</button>
+        </div>
+
+        <!-- Progress Section -->
+        <div id="progressSection" class="progress-section hidden">
+            <div class="progress-header">
+                <span id="progressText" class="progress-text">0 / 0 lessons</span>
+                <span id="progressPercent" class="progress-percent">0%</span>
+            </div>
+            <div class="progress-bar-container">
+                <div id="progressBar" class="progress-bar"></div>
+            </div>
+            <div id="currentLesson" class="current-lesson"></div>
+        </div>
+
+        <!-- Status Messages -->
+        <div id="status" class="status">Ready to scrape. Navigate to a Thinkific course curriculum page.</div>
+
+        <!-- Error Log (Collapsible) -->
+        <details id="errorLogSection" class="error-log hidden">
+            <summary>
+                <span id="errorSummary">Errors (0)</span>
+            </summary>
+            <ul id="errorList" class="error-list"></ul>
+        </details>
+    </div>
 
     <script src="popup.js"></script>
 </body>
