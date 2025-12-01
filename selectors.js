@@ -57,6 +57,17 @@ const SELECTORS = {
         '.lesson-item'
     ],
 
+    // Clickable element within lesson card
+    clickableLesson: [
+        '[data-qa="curriculum-lesson-card"]',
+        '[data-testid="lesson-card"]',
+        'button[role="button"]',
+        'div[role="button"]',
+        'a[href]',
+        '[class*="content-card"]',
+        '[class*="lesson-card"]'
+    ],
+
     // Lesson title
     lessonTitle: [
         // Modern Thinkific specific classes
@@ -153,6 +164,40 @@ const SELECTORS = {
         '[class*="lesson-page"]',
         '[class*="lesson-view"]',
         '.lesson-container'
+    ],
+
+    // Lesson text editor (right-hand panel on curriculum page)
+    lessonTextEditor: [
+        // Froala editor (what you showed in the example)
+        '.fr-element.fr-view',
+        '[class*="fr-view"]',
+        '[class*="fr-element"]',
+
+        // TinyMCE alternatives
+        '.tox-edit-area__iframe',
+        'iframe[id*="tiny"]',
+
+        // Generic editor selectors
+        '[data-qa="lesson-text-editor"]',
+        '[data-qa="lesson-text"]',
+        '[data-qa="text-editor"]',
+        '[contenteditable="true"]',
+        '[class*="editor-content"]',
+        '[class*="lesson-text"]',
+        '.text-editor',
+        '.lesson-editor'
+    ],
+
+    // Lesson title in the right-hand editor panel
+    lessonEditorTitle: [
+        '[data-qa="lesson-title"]',
+        '[data-qa="item-title"]',
+        '[class*="lesson-title"]',
+        '[class*="item-title"]',
+        '.lesson-header h1',
+        '.lesson-header h2',
+        'h1',
+        'h2'
     ]
 };
 
@@ -293,9 +338,13 @@ function detectLessonType(lessonElement) {
  * @returns {string|null} - Lesson URL or null
  */
 function getLessonUrl(lessonElement) {
+    console.log('[Debug] getLessonUrl called for lesson element:', lessonElement.outerHTML);
+
     // Method 1: Check for direct link
     const link = lessonElement.querySelector('a[href]');
+    console.log('[Debug] Method 1 link:', link && link.href);
     if (link && link.href) {
+        console.log('[Debug] Returning from Method 1:', link.href);
         return link.href;
     }
 
@@ -303,19 +352,27 @@ function getLessonUrl(lessonElement) {
     const url = lessonElement.getAttribute('data-url') ||
                 lessonElement.getAttribute('data-href') ||
                 lessonElement.getAttribute('data-lesson-url');
+    console.log('[Debug] Method 2 data-url/data-href/data-lesson-url:', url);
     if (url) {
-        return url.startsWith('http') ? url : window.location.origin + url;
+        const finalUrl = url.startsWith('http') ? url : window.location.origin + url;
+        console.log('[Debug] Returning from Method 2:', finalUrl);
+        return finalUrl;
     }
 
     // Method 3: Check if element itself is clickable and has onclick
     const onclick = lessonElement.getAttribute('onclick');
+    console.log('[Debug] Method 3 onclick:', onclick);
     if (onclick) {
         const urlMatch = onclick.match(/['"]([^'"]*lessons[^'"]*)['"]/);
+        console.log('[Debug] Method 3 urlMatch:', urlMatch);
         if (urlMatch) {
-            return urlMatch[1].startsWith('http') ? urlMatch[1] : window.location.origin + urlMatch[1];
+            const finalUrl = urlMatch[1].startsWith('http') ? urlMatch[1] : window.location.origin + urlMatch[1];
+            console.log('[Debug] Returning from Method 3:', finalUrl);
+            return finalUrl;
         }
     }
 
+    console.log('[Debug] getLessonUrl returning null - no URL found');
     return null;
 }
 

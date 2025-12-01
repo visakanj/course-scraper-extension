@@ -84,8 +84,33 @@ async function buildCourseMap() {
 
                     const lessonType = detectLessonType(lessonElement);
 
-                    // Try to get lesson URL
+                    // Debug logging for first 3 lessons in first chapter
+                    if (chapterIndex === 0 && lessonIndex < 3) {
+                        console.log('[Debug] Lesson raw element HTML:', lessonElement.outerHTML);
+                        console.log('[Debug] Lesson title:', lessonTitle);
+                        console.log('[Debug] Lesson type:', lessonType);
+                    }
+
+                    // Try to get lesson URL (should be edit URL on curriculum page)
                     let lessonUrl = getLessonUrl(lessonElement);
+
+                    if (chapterIndex === 0 && lessonIndex < 3) {
+                        console.log('[Debug] getLessonUrl result:', lessonUrl);
+                    }
+
+                    // Ensure URL is absolute
+                    if (lessonUrl && !lessonUrl.startsWith('http')) {
+                        lessonUrl = new URL(lessonUrl, window.location.origin).href;
+                    }
+
+                    // Verify it's an edit URL (should contain /manage/courses/ or /edit)
+                    if (lessonUrl) {
+                        if (!lessonUrl.includes('/manage/') && !lessonUrl.includes('/edit')) {
+                            console.warn(`[ContentScraper] URL for "${lessonTitle}" may not be an edit URL: ${lessonUrl}`);
+                        } else {
+                            console.log(`[ContentScraper] Found edit URL for "${lessonTitle}": ${lessonUrl}`);
+                        }
+                    }
 
                     // If URL not found, try clicking and capturing URL change
                     if (!lessonUrl) {

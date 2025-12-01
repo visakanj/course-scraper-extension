@@ -35,11 +35,12 @@ Click "Allow" to grant these permissions.
 
 ## Usage
 
-### Step 1: Navigate to Course Curriculum
+### Step 1: Navigate to Course Curriculum (Instructor View)
 
-1. Log in to your Thinkific course
-2. Navigate to the **course curriculum page** (the page that shows all chapters and lessons)
-3. Make sure you're viewing the full course outline
+1. Log in to your Thinkific account **as an instructor**
+2. Navigate to the **course curriculum management page** (the page where you edit the course structure)
+3. Make sure you're viewing the full course outline with all chapters and lessons visible in the left sidebar
+4. **Important**: You must be on the instructor/admin curriculum page, not the student view
 
 ### Step 2: Start Scraping
 
@@ -50,11 +51,12 @@ Click "Allow" to grant these permissions.
    - Status message
 3. Click **"Start Scraping"** button
 4. The extension will:
-   - Build a course map (extract all chapter/lesson structure)
-   - Navigate through each lesson sequentially
-   - Extract content based on lesson type
-   - Return to curriculum page between lessons
-   - Display real-time progress
+   - Build a course map (extract all chapter/lesson structure from the sidebar)
+   - Stay on the curriculum page (no navigation away from the page)
+   - Click through each lesson in the sidebar sequentially
+   - Wait for each lesson to load in the right-hand editor panel
+   - Extract text content from the editor area
+   - Display progress in the browser console
 
 ### Step 3: Monitor Progress
 
@@ -90,10 +92,10 @@ The extension generates a JSON file with the following structure:
 ```json
 {
   "courseTitle": "Course Name",
-  "curriculumUrl": "https://...",
+  "curriculumUrl": "https://your-site.thinkific.com/manage/courses/...",
+  "extractedAt": "2025-11-30T12:00:00.000Z",
   "totalChapters": 5,
   "totalLessons": 32,
-  "extractedAt": "2025-11-30T12:00:00.000Z",
   "chapters": [
     {
       "chapterTitle": "Chapter 1: Introduction",
@@ -101,120 +103,109 @@ The extension generates a JSON file with the following structure:
       "lessons": [
         {
           "title": "Lesson 1: Getting Started",
-          "type": "text|video|download|quiz",
-          "url": "https://...",
-          "content": {
-            "type": "text",
-            "html": "<full HTML content>",
-            "plainText": "Plain text version"
-          },
-          "scrapedAt": "2025-11-30T12:01:00.000Z"
+          "type": "text",
+          "url": "https://your-site.thinkific.com/manage/courses/.../items/.../edit",
+          "chapterIndex": 0,
+          "lessonIndex": 0,
+          "content": "<p>Full HTML content from the lesson</p>",
+          "textContent": "Full HTML content from the lesson",
+          "plainTextContent": "Full HTML content from the lesson"
+        },
+        {
+          "title": "Lesson 2: Video Tutorial",
+          "type": "video",
+          "url": "https://your-site.thinkific.com/manage/courses/.../items/.../edit",
+          "chapterIndex": 0,
+          "lessonIndex": 1,
+          "content": null,
+          "textContent": null,
+          "plainTextContent": null
         }
       ]
-    }
-  ],
-  "scrapedLessons": [...],
-  "errors": [
-    {
-      "context": "Lesson: XYZ",
-      "message": "Error description",
-      "timestamp": "2025-11-30T12:02:00.000Z"
-    }
-  ],
-  "completedAt": "2025-11-30T12:30:00.000Z"
-}
-```
-
-### Content Types
-
-**Text Lessons:**
-```json
-{
-  "type": "text",
-  "html": "<div>HTML content from iframe</div>",
-  "plainText": "Plain text content"
-}
-```
-
-**Video Lessons:**
-```json
-{
-  "type": "video",
-  "sources": [
-    {
-      "url": "https://example.com/video.mp4",
-      "type": "html5|embed|aws-s3"
-    }
-  ],
-  "provider": "vimeo|youtube|wistia|aws-s3|html5",
-  "embedUrl": "https://player.vimeo.com/video/123456",
-  "videoId": "123456",
-  "thumbnail": "https://..."
-}
-```
-
-**Download Lessons:**
-```json
-{
-  "type": "download",
-  "files": [
-    {
-      "url": "https://example.com/file.pdf",
-      "filename": "file.pdf",
-      "fileType": "pdf",
-      "linkText": "Download PDF",
-      "isAwsS3": true
     }
   ]
 }
 ```
 
+### Lesson Fields
+
+Each lesson object contains:
+
+- **title**: Lesson title (string)
+- **type**: Detected lesson type: `text`, `video`, `quiz`, `download`, or `unknown` (string)
+- **url**: Lesson edit URL (string or null)
+- **chapterIndex**: Index of the chapter containing this lesson (number)
+- **lessonIndex**: Index within the chapter (number)
+- **content**: Raw HTML content from the lesson (string or null)
+- **textContent**: Plain text version of the content (string or null)
+- **plainTextContent**: Plain text content with normalized whitespace (string or null)
+- **error** (optional): Error message if content extraction failed (string)
+
+### Content Extraction
+
+**Text Lessons**: The extension extracts the `text_html` field from the lesson edit page, which contains the full HTML content created in the WYSIWYG editor.
+
+**Other Lesson Types**: Currently, only text lesson content is extracted. Video, quiz, and download lessons will have `content`, `textContent`, and `plainTextContent` set to `null`. The lesson `type` field indicates what kind of lesson it is.
+
 ## How It Works
 
 ### Architecture
 
-The extension uses a multi-component architecture:
+The extension uses a Chrome MV3 click-through DOM scraping architecture:
 
-1. **popup.js**: Orchestrates the scraping process
-2. **content-scraper.js**: Builds course map from curriculum page
-3. **lesson-scraper.js**: Extracts content from individual lessons
-4. **selectors.js**: Multi-level fallback selector system
-5. **utils.js**: Shared utilities (retry logic, navigation, etc.)
+1. **popup.js**: Main orchestration controller (runs in extension context)
+2. **selectors.js**: Multi-level fallback selector system (injected into page)
+3. **utils.js**: Shared utilities for DOM operations (injected into page)
+4. **clickThroughAndScrapeCourse()**: Injected function that runs in the page context
 
 ### Scraping Process
 
-1. **Build Course Map**: Inject `content-scraper.js` into curriculum page to extract:
-   - All chapter titles
-   - All lesson titles and types
-   - Direct URLs to each lesson
+1. **Inject Scripts**:
+   - Extension injects `selectors.js` and `utils.js` into the Thinkific curriculum page
+   - Extension then injects and executes `clickThroughAndScrapeCourse()` function
 
-2. **Sequential Scraping**: For each lesson:
-   - Navigate to lesson URL (direct navigation, not history.back)
-   - Inject `lesson-scraper.js`
-   - Extract content based on type (text/video/download)
-   - Handle iframe content using `allFrames: true` injection
-   - Navigate back to curriculum
-   - Wait 2.5 seconds before next lesson
+2. **Build Course Structure**:
+   - Function finds all chapter containers in the sidebar
+   - Extracts chapter titles and lesson cards
+   - Builds a course plan with chapters and lessons
 
-3. **Error Handling**: If a lesson fails:
-   - Retry up to 3 times with exponential backoff (1s, 2s, 4s)
-   - Log error and continue with next lesson
-   - Include error in final output
+3. **Click Through Lessons** (stays on curriculum page):
+   - For each lesson in the course plan:
+     - Finds the lesson card in the sidebar by matching title
+     - Scrolls the card into view
+     - Clicks the lesson card
+     - Waits for the right-hand editor panel to load with that lesson
+     - Extracts text content from the editor area
+     - Populates `content`, `textContent`, and `plainTextContent`
 
-4. **Download**: Generate JSON and download using Chrome downloads API
+4. **Wait for Lesson Load**:
+   - `waitForLessonLoaded()` polls the editor panel title
+   - Compares normalized title with expected lesson title
+   - Waits up to 10 seconds for the lesson to appear
+   - Adds extra 500ms delay for editor content to render
 
-### Iframe Content Extraction
+5. **Extract Lesson Text**:
+   - `extractLessonText()` looks for the lesson text editor element
+   - Tries direct `contenteditable` div first (e.g., Froala `.fr-element.fr-view`)
+   - Falls back to iframe access if editor is in an iframe
+   - Extracts both HTML (`innerHTML`) and plain text (`innerText`)
 
-The extension solves the cross-origin iframe problem using:
+6. **Error Handling**: If a lesson fails:
+   - Logs the error to console
+   - Sets `content`, `textContent`, and `plainTextContent` to `null`
+   - Sets `error` field with error message
+   - Continues with the next lesson
 
-1. **Primary Method**: `chrome.scripting.executeScript({ allFrames: true })`
-   - Injects script into both main page and iframe contexts
-   - Script running in iframe has direct DOM access
-   - Returns content to main context
+7. **Download**: Generate JSON and download using Chrome downloads API
 
-2. **Fallback Method**: Check main page DOM
-   - If iframe injection fails
-   - Search for content in main page structure
+### DOM Scraping Solution
+
+This architecture avoids cross-origin issues by:
+
+1. **Everything runs in page context**: The entire scraping function executes inside the Thinkific page, not in the extension popup
+2. **No navigation required**: Stays on the curriculum page and uses DOM manipulation
+3. **Direct DOM access**: Clicks lesson cards and reads editor content directly from the DOM
+4. **Same-origin**: All DOM elements are on the same Thinkific domain, so no CORS issues
 
 ## Troubleshooting
 
@@ -282,19 +273,21 @@ The extension solves the cross-origin iframe problem using:
 
 ## Known Limitations
 
-1. **Quiz Content**: Quiz questions and answers are not fully extracted (detected but not parsed)
+1. **Text Lessons Only**: Currently only extracts text lesson content from the editor. Video, quiz, and download lessons are detected but their content is not extracted.
 
-2. **SCORM Packages**: Cannot extract SCORM/xAPI content via DOM scraping
+2. **Requires Instructor Access**: You must be logged in as a course instructor/admin and be on the curriculum management page.
 
-3. **Video Files**: Only captures video URLs and metadata, does not download actual video files
+3. **DOM Dependency**: The extension relies on finding specific DOM elements (lesson cards, editor panels). If Thinkific changes their HTML structure, selectors may need updates.
 
-4. **Protected Content**: Cannot extract DRM-protected or copy-protected content
+4. **No Video Downloads**: Does not download video files, only extracts text content.
 
-5. **Authentication**: Assumes you're already logged in (no automatic login)
+5. **Sequential Processing**: Processes one lesson at a time by clicking through them sequentially. This is intentional to allow the editor panel to load properly.
 
-6. **Rate Limiting**: No built-in rate limiting (uses fixed 2.5s delays)
+6. **Authentication Required**: Assumes you're already logged in (no automatic login).
 
-7. **Thinkific Updates**: CSS selectors may break if Thinkific updates their frontend
+7. **Single Tab**: The extension must run while the Thinkific tab is active. Do not switch tabs or close the browser during scraping.
+
+8. **Lesson Title Matching**: Lessons are identified by title matching. If multiple lessons have identical titles, the scraper may not handle them correctly.
 
 ## Privacy & Security
 
@@ -318,17 +311,15 @@ The extension solves the cross-origin iframe problem using:
 
 ```
 course-scraper/
-├── manifest.json           # Chrome extension configuration
+├── manifest.json           # Chrome extension configuration (MV3)
 ├── popup.html             # Extension popup UI
-├── popup.js               # Main orchestration controller
+├── popup.js               # Main controller + clickThroughAndScrapeCourse() function
 ├── styles.css             # Popup UI styles
-├── content-scraper.js     # Course map builder
-├── lesson-scraper.js      # Lesson content extractor
-├── selectors.js           # Multi-level selector fallbacks
-├── utils.js               # Shared utilities
-├── index.html             # (Legacy API approach - unused)
-├── popup-test.html        # (Test file - unused)
-└── popup-test.js          # (Test file - unused)
+├── selectors.js           # Multi-level selector fallbacks (injected into page)
+├── utils.js               # Shared utilities (injected into page)
+├── content-scraper.js     # (Legacy - not used in click-through architecture)
+├── lesson-scraper.js      # (Legacy - not used in click-through architecture)
+└── README.md              # This file
 ```
 
 ### Testing
@@ -344,12 +335,22 @@ course-scraper/
 
 All console logs are prefixed with component names:
 - `[Popup]`: popup.js orchestration
-- `[ContentScraper]`: Course map building
-- `[LessonScraper]`: Lesson content extraction
-- `[IframeScraper]`: Iframe content extraction
-- `[FindElement]`: Selector matching
-- `[Navigate]`: Navigation operations
-- `[Retry]`: Retry logic
+- `[Scraper]`: clickThroughAndScrapeCourse() function running in page context
+- `[FindElement]`: Selector matching (from selectors.js)
+- `[FindElements]`: Multiple element matching (from selectors.js)
+
+To debug:
+1. Open Chrome DevTools (F12) on the Thinkific curriculum page
+2. Go to the Console tab
+3. Click "Start Scraping" in the extension popup
+4. Watch the console for detailed logs:
+   - Chapter and lesson discovery
+   - Each lesson click event
+   - Waiting for lesson to load
+   - Content extraction results
+5. Check the downloaded JSON to verify content extraction
+
+**Tip**: You can watch the extension click through lessons in real-time by keeping the Thinkific tab visible while scraping.
 
 ## Contributing
 
